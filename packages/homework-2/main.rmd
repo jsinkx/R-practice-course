@@ -1,21 +1,22 @@
-###
-# Датасет mtcars, встроенный в R
-# Доку можно почитать здесь
-# https://cran.r-project.org/web/packages/explore/vignettes/explore-mtcars.html
-# https://www.w3schools.com/r/r_stat_data_set.asp
-# https://www.youtube.com/watch?v=5G3GUciLRDc
-###
+---
+title: 'Анализ данных mtcars'
+author: 'Artemiy Voronin SHAD-312 (not sku-f)'
+output: html_document
+---
 
-###
-# mpg - расход топлива
-# hp - мощность
-# wt - вес
-# cyl - число цилиндров
-# gear - число передач
-# am - тип коробки передач (0 = автомат, 1 = ручная)
-# vs - тип двигателя (0 = V-образный, 1 = рядный)
-###
+# Введение
 
+Этот отчет анализирует встроенный в R датасет `mtcars`.
+
+Документация доступна здесь:
+
+-   [Explore mtcars](https://cran.r-project.org/web/packages/explore/vignettes/explore-mtcars.html)
+-   [Описание на W3Schools](https://www.w3schools.com/r/r_stat_data_set.asp)
+-   [Youtube сводка по датасету](https://www.youtube.com/watch?v=5G3GUciLRDc)
+
+------------------------------------------------------------------------
+
+```{r}
 library(ggplot2)
 library(reshape2)
 
@@ -85,3 +86,4 @@ ggplot(df_car_list, aes(x = mpg_class, fill = mpg_class)) +
 
 # * Сохранение в csv
 write.csv(df_car_list, "df_car_list.csv", row.names = FALSE)
+```

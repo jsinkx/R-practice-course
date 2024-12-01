@@ -1,201 +1,410 @@
-# install.packages("MASS")
-# install.packages("gridExtra")
-# install.packages("corrplot")
-# install.packages("ggplot2")
-# install.packages("lmtest")
-# install.packages("neuralnet")
-# install.packages("randomForest")
-
 library(MASS)
-library(ggplot2)
-library(gridExtra)
+library(lattice) 
+library(caTools) 
+library(dplyr) 
+library(reshape2)
+
 library(corrplot)
+library(plotly)
+library(ggplot2)
+
+library(gridExtra)
 library(lmtest)
+library(Metrics)
+
 library(neuralnet)
 library(randomForest)
 
-# Загрузка данных
+options(warn = -1)
+
+# Данные по жилью в Бостоне
+# Этот набор данных содержит информацию о 506 участках Бостона по данным переписи 1970 года. 
+# Цель выяснять, какие факторы влияют на среднюю стоимость домов.
+# В целом, датасет полностью готов для аналитики и построения моделей, особой предобработки не требует.
 data("Boston")
 
-# crime - уровень преступности на душу населения в разбивке по городам
-# zn - доля земель под жилую застройку, разделенных на участки площадью более 25 000 кв.футов
-# indus - доля акров, не связанных с розничной торговлей, в расчете на один город
-# chas - фиктивная переменная Charles River (= 1, если участок граничит с рекой; 0 в противном случае)
-# nox - концентрация оксидов азота (частей на 10 миллионов)
-# rm - среднее количество комнат в доме
-# age - доля жилых помещений, построенных владельцами до 1940
-# dis взвешенные расстояния до пяти бостонских центров занятости
-# rad - индекс доступности радиальных автомагистралей
-# tax налог - ставка налога на недвижимость с полной стоимости на 10 000 долларов
+data_houses <- Boston
+
+# * Этап EDA
+
+head(data_houses)
+
+dim(data_houses)
+
+str(data_houses)
+
+summary(data_houses)
+
+# crime   - уровень преступности на человека населения в разбивке по городам
+# zn      - количество земель под жилую застройку, разделенных на участки площадью более 25 000 кв.футов
+# indus   - доля акров (0.4 гектар), не связанных с розничной торговлей, в расчете на один город
+# chas    - переменная Charles River (= 1, если участок граничит с рекой; 0 в противном случае)
+# nox     - концентрация оксидов азота (частей на 10 миллионов)
+# rm      - среднее количество комнат в доме
+# age     - доля жилых помещений, построенных владельцами до 1940
+# dis     - взвешенные расстояния до пяти бостонских центров занятости
+# rad     - индекс доступности радиальных автомагистралей
+# tax     - я ставка налога на недвижимость с полной стоимости на 10 000 долларов
 # ptratio - соотношение учеников и учителей по городам.
-# black - доля чернокожих в разбивке по городам
-# lstat - процент населения с более низким статусом
-# medv - средняя стоимость домов, занимаемых владельцами, на 1000 долларов США
+# black   - доля чернокожих в разбивке по городам
+# lstat   - процент населения с более низким статусом
+# medv    - средняя стоимость домов, занимаемых владельцами, на 1000 долларов США
 
-# Проверка нормальности с помощью теста Шапиро-Уилка
-shapiro_results <- sapply(Boston, function(x) shapiro.test(x)$p.value)
+number_of_NA <- length(which(is.na(data_houses)==T))
 
-# Фильтрация только числовых переменных
-shapiro_results <- shapiro_results[sapply(Boston, is.numeric)]
-
-# Вывод результатов
-print(shapiro_results)
-
-# Визуализация распределения некоторых числовых переменных
-plots <- lapply(names(Boston)[1:3], function(var) {
-  ggplot(Boston, aes_string(x = var)) +
-    geom_histogram(bins = 30, aes(y = ..density..), fill = "steelblue", alpha = 0.7) +
-    geom_density(color = "red") +
-    ggtitle(paste("Распределение", var))
-})
-
-grid.arrange(grobs = plots, ncol = 3)
-
-# Расчет корреляционной матрицы
-cor_matrix <- cor(Boston)
-
-# Визуализация корреляционной матрицы
-corrplot(cor_matrix)
-
-# Построение корреляционного графика
-# corrplot(cor_matrix, method = "circle", type = "upper", tl.col = "black", tl.srt = 45)
-
-# Построение модели линейной регрессии
-model <- lm(medv ~ rm, data = Boston)
-
-# Вывод результатов модели
-summary(model)
-
-dw_test <- dwtest(model)
-print(dw_test)
-
-shapiro_test_residuals <- shapiro.test(residuals(model))
-print(shapiro_test_residuals)
-
-r_squared <- summary(model)$r.squared
-print(paste("Коэффициент детерминации R²:", r_squared))
-
-# Построение множественной линейной регрессии
-multi_model <- lm(medv ~ rm + lstat + age, data = Boston)
-
-# Вывод результатов модели
-summary(multi_model)
-
-# Например, если lstat оказался незначимым
-updated_model <- lm(medv ~ rm + age, data = Boston)
-summary(updated_model)
-
-r_squared <- summary(updated_model)$r.squared
-adjusted_r_squared <- summary(updated_model)$adj.r.squared
-
-print(paste("Коэффициент детерминации R²:", r_squared))
-print(paste("Скорректированный R²:", adjusted_r_squared))
-
-r_squared <- summary(updated_model)$r.squared
-adjusted_r_squared <- summary(updated_model)$adj.r.squared
-
-print(paste("Коэффициент детерминации R²:", r_squared))
-print(paste("Скорректированный R²:", adjusted_r_squared))
-
-# График остатков
-residuals_data <- data.frame(Actual = Boston$medv, Predicted = predict(updated_model), Residuals = residuals(updated_model))
-
-ggplot(residuals_data, aes(x = Predicted, y = Residuals)) +
-  geom_point() +
-  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
-  ggtitle("График остатков") +
-  xlab("Предсказанные значения") +
-  ylab("Остатки")
-
-
-ggplot(residuals_data, aes(x = Residuals)) +
-  geom_histogram(bins = 30, aes(y = ..density..), fill = "steelblue", alpha = 0.7) +
-  geom_density(color = "red") +
-  ggtitle("Распределение остатков") +
-  xlab("Остатки") +
-  ylab("Плотность")
-
-# Квадратичная модель
-quadratic_model <- lm(medv ~ poly(age, 2), data = Boston)
-summary(quadratic_model)
-
-# Кубическая модель
-cubic_model <- lm(medv ~ poly(age, 3), data = Boston)
-summary(cubic_model)
-
-# Экспоненциальная модель
-exponential_model <- lm(log(medv) ~ age, data = Boston)
-summary(exponential_model)
-
-# Сравнение моделей
-results <- data.frame(
-  Model = c("Квадратичная", "Кубическая", "Экспоненциальная"),
-  AIC = c(AIC(quadratic_model), AIC(cubic_model), AIC(exponential_model)),
-  BIC = c(BIC(quadratic_model), BIC(cubic_model), BIC(exponential_model)),
-  R2 = c(
-    summary(quadratic_model)$r.squared,
-    summary(cubic_model)$r.squared,
-    summary(exponential_model)$r.squared
-  )
-)
-
-print(results)
-
-# Нормализация данных
-normalize <- function(x) {
-  return((x - min(x)) / (max(x) - min(x)))
+if(number_of_NA> 0 ) {
+  data_houses <- data_houses[complete.cases(data_houses),]
 }
 
-# Нормализуем данные
-Boston_norm <- as.data.frame(lapply(Boston, normalize))
+# Проверка нормальности с помощью теста Шапиро-Уилка
+CONST_ALPHA <- 0.05
 
-# Обучаем модель
-set.seed(123) # Для воспроизводимости
-nn_model <- neuralnet(medv ~ ., data = Boston_norm, hidden = c(5, 3), linear.output = TRUE)
+shapiro_results <- sapply(data_houses, function(x) {
+  if (is.numeric(x)) shapiro.test(x)$p.value else NA
+})
 
-# Предсказания
-predicted <- predict(nn_model, newdata = Boston_norm)
-actual <- Boston_norm$medv
+shapiro_df <- data.frame(Variable = names(shapiro_results), P_Value = shapiro_results)
+shapiro_df <- shapiro_df[!is.na(shapiro_df$P_Value), ]
 
-# Сравнение результатов
-results <- data.frame(Actual = actual, Predicted = predicted)
-print(head(results))
+shapiro_df$Normality <- ifelse(shapiro_df$P_Value > CONST_ALPHA, "Normal", "Non-Normal")
 
-# Визуализация кривой обучения
-plot(nn_model)
+print("Результаты теста Шапиро-Уилка:")
+print(shapiro_df)
 
-mse_nn <- mean((actual - predicted)^2)
-print(mse_nn)
+# Ну так, данные ненормальные
+# Но это не проблема поскольку, например, дерево решений, бустинг, случайные леса не требуют нормальности данных
 
-# График предсказаний
-plot(actual, predicted,
-  main = "Нейронная сеть: фактические vs предсказанные значения",
-  xlab = "Фактические значения", ylab = "Предсказанные значения", col = "blue", pch = 20
+numeric_vars <- names(data_houses)[sapply(data_houses, is.numeric)]
+melted_data  <- melt(data_houses[numeric_vars])
+
+# Немного сгладим данные
+data_houses$crim          <- log(data_houses$crim + 1) # +1 для обработки нулей
+data_houses$zn            <- sqrt(data_houses$zn)
+data_houses$indus         <- 1 / (data_houses$indus + 1)
+data_houses[numeric_vars] <- scale(data_houses[numeric_vars])
+
+# Посмотрим на статистику
+
+numeric_data <- data_houses[, numeric_vars]
+
+# Гистограммы всех числовых переменных
+plot_histograms <- function(data) {
+  plots <- lapply(names(data), function(var) {
+    ggplot(data, aes_string(x = var)) +
+      geom_histogram(aes(y = ..density..), bins = 30, fill = "blue", alpha = 0.5) +
+      geom_density(color = "red", size = 1) +
+      labs(title = paste("Распределение переменной", var), x = var, y = "Плотность") +
+      theme_minimal()
+  })
+  do.call(grid.arrange, c(plots, ncol = 3))
+}
+
+plot_histograms(numeric_data)
+
+# Q-Q графики всех числовых переменных
+plot_qq <- function(data) {
+  plots <- lapply(names(data), function(var) {
+    ggplot(data, aes(sample = get(var))) +
+      stat_qq(color = "blue") +
+      stat_qq_line(color = "red") +
+      labs(title = paste("Q-Q plot переменной", var)) +
+      theme_minimal()
+  })
+  do.call(grid.arrange, c(plots, ncol = 3))
+}
+
+plot_qq(numeric_data)
+
+# Коррелляционная матрица
+cor_matrix <- cor(data_houses)
+colors     <- colorRampPalette(c("blue", "white", "red"))(200)
+
+corrplot(cor_matrix, col = colors, tl.col = "black", tl.srt = 45, method = "color")
+
+# Выясним линейность между medv (ср. стоимостью домов) и другими переменными
+# В целом нас интересуют zn, chas, rm, dis, и black к medy
+
+# * Этап моделирования
+# * Линейная регрессия
+
+set.seed(3)
+
+split <- sample.split(data_houses, SplitRatio = 0.75) 
+train <- subset(data_houses, split==TRUE)
+test  <- subset(data_houses, split==FALSE)
+
+# Построение модели линейной регрессии (по количеству комнат)
+model_linear_regression <- lm(medv ~ rm, data = train)
+summary(model_linear_regression)
+
+# medv = -0.007148 + 0.695253 * rm
+# Среднее отклонение предсказанных значений от фактических составляет 0.6955 тысячи долларов.
+# Гипотеза о незначимости модели отвергается. Модель имеет статистически значимые объясняющие способности.
+# По моему мнению, rm (среднее количество комнат) имеет сильную связь со стоимостью жилья, модель хорошо прогнозирует
+
+dw_test <- dwtest(model_linear_regression)
+
+# Остатки автокоррелированы, возможно, нужно рассмотреть более сложную модель
+#	R^2 = 0.49 - модель объясняет 49.14% изменчивости стоимости домов
+
+print(dw_test)
+ 
+# * Множественная регрессия
+model_multiple_regression <- lm(medv ~ zn + chas + rm + dis + black, data = train)
+summary(model_multiple_regression)
+
+# F-статистика:  F = 100.8 ,  p-value <  2.2e-16
+# Гипотеза о незначимости модели отвергается: модель значима в целом.
+
+# R^2 = 0.84 - модель объясняет 84.57% изменчивости целевой переменной medv (супер)
+# Adjusted R^2 = 0.8373 (с учетом числа предикторов) качество остается высоким
+
+# Оценим значимость каждого предиктора по p-value:
+# r     (p-value <  2e-16): сильно значим, основная объясняющая переменная
+# zn    (p-value = 0.0803): на границе значимости ( \alpha = 0.05 ), умеренная связь
+# dis   (p-value = 0.0759): на границе значимости, отрицательное влияние
+# chas  (p-value = 0.2187): незначим, влияние отсутствует
+# black (p-value = 0.7924): незначим, влияние отсутствует
+
+# rm (среднее количество комнат) имеет сильное влияние на стоимость жилья
+# zn и dis оказывают слабое влияние и могут быть полезны при построении модели
+# chas и black можно рассмотреть для исключения
+
+# Парциальные зависимости
+partial_plots <- function(model, data, variables) {
+  plots <- lapply(variables, function(var) {
+    data_partial <- data.frame(Predictor = data[[var]], 
+                               Residual = residuals(model) + predict(model, newdata = data) - data$medv)
+    ggplot(data_partial, aes(x = Predictor, y = Residual)) +
+      geom_point(color = "blue", alpha = 0.5) +
+      geom_smooth(method = "loess", color = "red", se = FALSE) +
+      labs(title = paste("Partial dependence:", var), 
+           x = var, 
+           y = "Predicted medv") +
+      theme_minimal()
+  })
+  return(plots)
+}
+
+features <- c("zn", "chas", "rm", "dis", "black")
+
+# Построение парциальных графиков
+plots <- partial_plots(model_multiple_regression, train, features)
+
+# Модель применима для прогнозирования средней стоимости жилья, но с учетом ограничений по значимости предикторов.
+do.call(grid.arrange, plots)
+
+# * Нелинейные модели регрессии (chas и black я выпилил по причинам выше)
+
+print('---')
+
+# Краткая сводка по метрикам
+
+# Для оценки качества моделей используем:
+#   AIC: критерий информационного количества Акаике (меньше — лучше)
+# 	BIC: байесовский информационный критерий (меньше — лучше)
+#	  R^2  и Adjusted R^2 - доля объясненной вариации (больше - лучше)
+
+print('---')
+
+# Квадратичная 
+model_quadratic <- lm(medv ~ zn + rm + dis + I(rm^2), data = train)
+summary(model_quadratic)
+
+# Residual standard error (RSE): 0.3237 — модель имеет относительно небольшую ошибку, что указывает на хорошее соответствие предсказаний фактическим значениям
+# Multiple R^2: 0.8744 — 87.44% вариации целевой переменной medv объясняется предикторами модели
+# Adjusted R^2: 0.869 — с учетом количества предикторов значение скорректированного R^2 остаётся высоким, что указывает на хорошее качество модели
+# F-statistic: 161.8 (p-value < 2.2e-16) — модель значима в целом
+
+# Кубическая
+model_cubic <- lm(medv ~ zn + rm + dis + I(rm^2) + I(rm^3), data = train)
+summary(model_cubic)
+
+# Residual standard error (RSE): 0.3197 — модель имеет ещё меньшую ошибку, чем квадратичная, что указывает на улучшение соответствия предсказаний фактическим значениям
+#	Multiple R^2: 0.8788 — 87.88% вариации стоимости жилья medv объясняется предикторами модели
+#	Adjusted R^2: 0.8722 — скорректированный R^2 также улучшился по сравнению с квадратичной моделью
+#	F-statistic: 133.4 (p-value < 2.2e-16) — модель значима в целом
+
+# Сравнение
+
+models <- list(
+  Linear = model_multiple_regression,
+  Quadratic = model_quadratic,
+  Cubic = model_cubic
 )
-abline(0, 1, col = "red") # Линия y=x для удобства сравнения
 
-# Используем нормализованные данные
-Boston_norm <- Boston_norm # Если данные уже нормализованы
+comparison <- data.frame(
+  Model = names(models),
+  AIC = sapply(models, AIC),
+  BIC = sapply(models, BIC),
+  R2 = sapply(models, function(m) summary(m)$r.squared),
+  Adjusted_R2 = sapply(models, function(m) summary(m)$adj.r.squared)
+)
 
-# Обучаем модель случайного леса
-set.seed(123) # Для воспроизводимости
-rf_model <- randomForest(medv ~ ., data = Boston_norm, importance = TRUE, ntree = 100)
+# Мои замечания
 
-# Важность признаков
-importance_rf <- importance(rf_model)
+# AIC
+# Квадратичная модель немного уступает кубической (AIC = 63.89), но заметно лучше линейной модели (AIC = 86.06)
+# Кубическая модель имеет минимальное значение AIC (62.42), что указывает на её предпочтительность среди представленных моделей.
 
-# Построение графика значимости переменных
-varImpPlot(rf_model, main = "Важность признаков в модели случайного леса")
+# BIC
+#	Квадратичная модель снова следует за кубической (BIC = 79.40), а линейная модель имеет наибольшее значение (BIC = 104.16)
+# Кубическая модель также имеет наименьший BIC (80.52), что подтверждает её преимущество
 
-# Предсказания модели
-predicted_rf <- predict(rf_model, newdata = Boston_norm)
-actual <- Boston_norm$medv
+# R^2
+# Квадратичная модель немного уступает кубической (87.44%), но превосходит линейную (84.56%)
+# Кубическая модель объясняет наибольшую долю дисперсии целевой переменной (87.88%), что делает её наиболее точной среди всех
 
-# Рассчитываем MSE
-mse_rf <- mean((actual - predicted_rf)^2)
-# Рассчитываем RMSE
-rmse_rf <- sqrt(mse_rf)
+# Adjusted R^2
+#	Квадратичная модель снова немного уступает (86.89%), а линейная модель (83.73%) отстает
+# Скорректированный коэффициент детерминации также максимален у кубической модели (87.22%), что учитывает сложность модели
 
-# Выводим результаты
-cat("MSE случайного леса:", mse_rf, "\n")
-cat("RMSE случайного леса:", rmse_rf, "\n")
+print(comparison)
+
+# Итог
+# Линейная модель имеет наихудшие показатели по всем метрикам. Это говорит о том, что она недостаточно сложна для полного описания взаимосвязей в данных
+# Квадратичная модель значительно улучшает показатели качества по сравнению с линейной моделью, подходит, если нужно сбалансировать объясняющую способность и интерпретируемость
+# Кубическая модель топ по всем метрикам качества, наиболее сложная модель, но обеспечивает максимальную точность предсказаний
+
+comparison_long <- reshape2::melt(comparison, id.vars = "Model")
+
+ggplot(comparison_long, aes(x = Model, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ variable, scales = "free_y", ncol = 2) +
+  labs(
+    title = "Сравнение моделей по метрикам качества",
+    x = "Модель",
+    y = "Значение",
+    fill = "Метрика"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# * Нейронка (bullshit)
+
+normalize <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+train_normalized <- as.data.frame(lapply(train, normalize))
+test_normalized <- as.data.frame(lapply(test, normalize))
+
+summary(train_normalized)
+
+any(is.na(train_normalized))
+
+replace_na_with_mean <- function(df) {
+  df[] <- lapply(df, function(x) ifelse(is.na(x), mean(x, na.rm = TRUE), x))
+  
+  return(df)
+}
+
+train_cleaned <- replace_na_with_mean(train_normalized)
+test_cleaned <- replace_na_with_mean(test_normalized)
+
+any(is.na(train_cleaned))  # должно вернуть FALSE
+any(is.na(test_cleaned))   # должно вернуть FALSE
+
+formula_nn <- medv ~ zn + rm + dis + black
+
+model_nn <- neuralnet(
+  formula = formula_nn,
+  data = train_cleaned,
+  hidden = c(5, 3),       # Два скрытых слоя (5 нейронов в первом, 3 во втором)
+  linear.output = TRUE,   # Для задачи регрессии
+  stepmax = 1e6           # Максимальное число итераций
+)
+
+# Визуализация модели
+plot(model_nn)
+
+print(test_cleaned[, c("zn", "rm", "dis", "black")])
+
+# Предсказания на тестовом наборе
+predictions_nn <- predict(model_nn, test_cleaned[, c("zn", "rm", "dis", "black")])
+
+head(predictions_nn)
+
+# Оценим модель по MSE
+mse_nn <- mean((test_cleaned$medv - predictions_nn)^2)
+
+print(paste("MSE:", mse_nn))
+
+# Сравним прогнозы и фактические значения
+head(predictions_nn)
+head(test_normalized$medv)
+
+# Оценка качества предсказаний
+mse_nn <- mse(test_cleaned$medv, predictions_nn)
+r2_nn <- cor(test_cleaned$medv, predictions_nn)^2
+
+print(paste("MSE:", mse_nn))
+print(paste("R^2:", r2_nn))
+
+# Денормализация предсказаний для сравнения с исходными данными
+denormalize <- function(x, original_min, original_max) {
+  x * (original_max - original_min) + original_min
+}
+
+predicted_values_denorm <- denormalize(
+  predictions_nn,
+  min(test$medv),
+  max(test$medv)
+)
+
+# Финальные метрики
+mse_nn <- mse(test$medv, predicted_values_denorm)
+print(paste("MSE:", mse_nn))
+
+plot(test$medv, predicted_values_denorm,
+     main = "Нейронная сеть: фактические vs предсказанные значения",
+     xlab = "Фактические значения", ylab = "Предсказанные значения", col = "blue", pch = 20
+)
+
+abline(0, 1, col = "red")
+
+# * Моделирование с помощью Random Forest регрессор
+model_rf <- randomForest(medv ~ ., data = data_houses, ntree = 500, importance = TRUE)
+print(model_rf)
+
+importance_rf <- importance(model_rf)
+print(importance_rf)
+
+ggplot(data = as.data.frame(importance_rf), 
+                          aes(x = reorder(rownames(importance_rf), -IncNodePurity), 
+                              y = IncNodePurity)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Важность признаков для модели случайного леса", 
+       x = "Признаки", y = "Mean Decrease Gini") +
+  theme_minimal()
+
+# Сделаем прогнозы на тестовом наборе
+predictions_rf <- predict(model_rf, test_cleaned)
+
+# Рассчитаем MSE для модели случайного леса
+mse_rf <- mean((test_cleaned$medv - predictions_rf)^2)
+print(paste("MSE для модели случайного леса:", mse_rf))
+
+# Сравним с MSE других моделей (например, линейной регрессии и нейронной сети)
+# (предполагаем, что mse_lr и mse_nn уже рассчитаны для линейной регрессии и нейронной сети)
+
+comparison <- data.frame(
+  Model = c("Neural Network", "Random Forest"),
+  MSE = c(mse_nn, mse_rf)
+)
+
+comparison
+
+ggplot(comparison, aes(x = Model, y = MSE, fill = Model)) +
+  geom_bar(stat = "identity", show.legend = TRUE) +
+  labs(title = "Сравнение MSE между моделями",
+       x = "Модель",
+       y = "Среднеквадратичная ошибка (MSE)") +
+  theme_minimal() +
+  scale_fill_manual(values = c("skyblue", "salmon")) +
+  theme(legend.title = element_blank(),
+        legend.position = "none")

@@ -120,8 +120,6 @@ cat("Минимальное количество человек, чтобы ве
 '---'
 
 # * Покер
-# TODO: сделать xD
-
 # В карточной игре покер игрок получает 5 карт из колоды в 52 карты.
 # Задача игрока собрать наиболее сильную комбинацию карт. Комбинации бывают следующие:
 # а) пара - две карты одного номинала;
@@ -137,3 +135,68 @@ cat("Минимальное количество человек, чтобы ве
 # Найдите вероятность получения каждой из перечисленных комбинаций
 # при случайной сдаче карт. Вычислите вероятность того, что не выпадет ни
 # одна из вышеперечисленных комбинаций.
+
+# Функция для подсчета факториала
+factorial <- function(x) {
+  if (x == 0) return(1)
+  return(prod(1:x))
+}
+
+# Функция для подсчета числа сочетаний C(n, k)
+choose <- function(n, k) {
+  factorial(n) / (factorial(k) * factorial(n - k))
+}
+
+# Общее количество комбинаций
+total_combinations <- choose(52, 5)
+
+# Пара (одна пара и три остальные карты разные по номиналу)
+pairs <- choose(13, 1) * choose(4, 2) * choose(12, 3) * (choose(4, 1)^3)
+prob_pair <- pairs / total_combinations
+
+# Две пары
+two_pairs <- choose(13, 2) * (choose(4, 2)^2) * choose(11, 1) * choose(4, 1)
+prob_two_pairs <- two_pairs / total_combinations
+
+# Тройка
+three_of_a_kind <- choose(13, 1) * choose(4, 3) * choose(12, 2) * (choose(4, 1)^2)
+prob_three_of_a_kind <- three_of_a_kind / total_combinations
+
+# Стрит
+straights     <- 10 * (choose(4, 1)^5) - 10 * 4  # вычитаем стрит-флэши
+prob_straight <- straights / total_combinations
+
+# Флэш
+flushes    <- choose(4, 1) * choose(13, 5) - 10  # вычитаем стрит-флэши
+prob_flush <- flushes / total_combinations
+
+# Фулл-хаус (три+два)
+full_house      <- choose(13, 1) * choose(4, 3) * choose(12, 1) * choose(4, 2)
+prob_full_house <- full_house / total_combinations
+
+# Каре
+four_of_a_kind      <- choose(13, 1) * choose(4, 4) * choose(12, 1) * choose(4, 1)
+prob_four_of_a_kind <- four_of_a_kind / total_combinations
+
+# Стрит-флэш
+straight_flushes    <- 10 * choose(4, 1)
+prob_straight_flush <- straight_flushes / total_combinations
+
+# Ройал-флэш
+royal_flushes    <- 1 * choose(4, 1)
+prob_royal_flush <- royal_flushes / total_combinations
+
+prob_none <- 1 - (prob_pair + prob_two_pairs + prob_three_of_a_kind + 
+                    prob_straight + prob_flush + prob_full_house + 
+                    prob_four_of_a_kind + prob_straight_flush + prob_royal_flush)
+
+cat("Пара:", prob_pair, "\n")
+cat("Две пары:", prob_two_pairs, "\n")
+cat("Тройка:", prob_three_of_a_kind, "\n")
+cat("Стрит:", prob_straight, "\n")
+cat("Флэш:", prob_flush, "\n")
+cat("Фулл-хаус:", prob_full_house, "\n")
+cat("Каре:", prob_four_of_a_kind, "\n")
+cat("Стрит-флэш:", prob_straight_flush, "\n")
+cat("Ройал-флэш:", prob_royal_flush, "\n")
+cat("Вероятность того, что не выпадет ни одна комбинация:", prob_none, "\n")
